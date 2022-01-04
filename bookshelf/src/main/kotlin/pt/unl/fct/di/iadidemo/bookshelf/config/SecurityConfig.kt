@@ -11,7 +11,8 @@ import pt.unl.fct.di.iadidemo.bookshelf.application.services.UserService
 @Configuration
 class SecurityConfig(
     val customUserDetails:CustomUserDetailsService,
-    val users: UserService
+    val users: UserService,
+    val entryPoint: CustomEntryPoint
 ) : WebSecurityConfigurerAdapter() {
 
     override fun configure(http: HttpSecurity) {
@@ -21,6 +22,7 @@ class SecurityConfig(
             .antMatchers("/swagger-ui.html").permitAll()
             .anyRequest().authenticated()
             .and().httpBasic()
+            .authenticationEntryPoint(entryPoint)
             // Missing the sign-up, sign-in and sign-out endpoints
             // Missing the configuration for filters
             .and()

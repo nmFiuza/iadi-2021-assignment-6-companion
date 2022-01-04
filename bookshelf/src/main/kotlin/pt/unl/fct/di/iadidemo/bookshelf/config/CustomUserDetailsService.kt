@@ -1,12 +1,18 @@
 package pt.unl.fct.di.iadidemo.bookshelf.config
 
+import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint
+import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import pt.unl.fct.di.iadidemo.bookshelf.application.services.UserService
+import java.io.PrintWriter
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 data class CustomUserDetails(
     private val username:String,
@@ -47,5 +53,25 @@ class CustomUserDetailsService(val users: UserService) : UserDetailsService {
             return user
         }
         throw UsernameNotFoundException("")
+    }
+}
+
+@Component
+class CustomEntryPoint : BasicAuthenticationEntryPoint() {
+
+    override fun commence(request: HttpServletRequest?, response: HttpServletResponse?, authException: AuthenticationException?) {
+        if (response != null) {
+            response.addHeader("WWW-Authenticate", "xBasic")
+            response.status = HttpServletResponse.SC_UNAUTHORIZED
+            val writer:PrintWriter = response.writer
+            if (authException != null) {
+                writer.println("HTTP Status 401 - " + authException.message)
+            }
+        }
+    }
+
+    override fun afterPropertiesSet() {
+        realmName = "Bookshelf"
+        super.afterPropertiesSet()
     }
 }
