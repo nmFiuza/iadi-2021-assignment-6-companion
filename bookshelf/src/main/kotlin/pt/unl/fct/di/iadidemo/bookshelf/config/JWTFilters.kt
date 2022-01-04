@@ -6,6 +6,8 @@ import io.jsonwebtoken.SignatureAlgorithm
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.GrantedAuthority
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter
 import org.springframework.web.filter.GenericFilterBean
@@ -30,6 +32,7 @@ private fun addResponseToken(authentication: Authentication, response: HttpServl
 
     val claims = HashMap<String, Any?>()
     claims["username"] = authentication.name
+    claims["roles"] = authentication.authorities
 
     val token = Jwts
             .builder()
@@ -74,9 +77,9 @@ class UserPasswordAuthenticationFilterToJWT (
     }
 }
 
-class UserAuthToken(private var login:String) : Authentication {
+class UserAuthToken(private var login:String, private val authorities: List<GrantedAuthority>) : Authentication {
 
-    override fun getAuthorities() = null
+    override fun getAuthorities() = authorities
 
     override fun setAuthenticated(isAuthenticated: Boolean) {}
 
@@ -112,8 +115,15 @@ class JWTAuthenticationFilter: GenericFilterBean() {
                 (response as HttpServletResponse).sendError(HttpServletResponse.SC_UNAUTHORIZED) // RFC 6750 3.1
 
             else {
+                val roles = claims["roles"].toString()
+                //val rolesPerfected = SimpleGrantedAuthority(roles.substring(12,23))
+                val roleList = roles.substring(1, roles.length-1).split(", ")
+                val authList : MutableList<GrantedAuthority> = mutableListOf()
+                for (r in roleList){
+                    authList.add(SimpleGrantedAuthority(r.substring(11,r.length-1)))
+                }
 
-                val authentication = UserAuthToken(claims["username"] as String)
+                val authentication = UserAuthToken(claims["username"] as String, authList)
                 // Can go to the database to get the actual user information (e.g. authorities)
 
                 SecurityContextHolder.getContext().authentication = authentication
@@ -157,7 +167,7 @@ class UserPasswordSignUpFilterToJWT (
                 .addUser(user)
                 .orElse( null )
                 .let {
-                    val auth = UserAuthToken(user.username)
+                    val auth = UserAuthToken(user.username, user.roles.map { SimpleGrantedAuthority("ROLE_${it.tag}") })
                     SecurityContextHolder.getContext().authentication = auth
                     auth
                 }
